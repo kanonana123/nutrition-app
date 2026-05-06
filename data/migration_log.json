@@ -1,0 +1,24 @@
+[
+  {
+    "id": "import-20260506084108",
+    "timestamp": "2026-05-06T08:41:08Z",
+    "source_file": "C:\\Users\\阳光宅男\\Desktop\\AI提示词\\二食堂.json",
+    "canteen_id": "二食堂",
+    "inserted": 239,
+    "updated": 2,
+    "errors": 0,
+    "error_items": [],
+    "backup_file": "C:\\Users\\阳光宅男\\Desktop\\AI提示词\\data\\backups\\menu_db-20260506-084108.json"
+  },
+  {
+    "id": "import-20260506084222",
+    "timestamp": "2026-05-06T08:42:22Z",
+    "source_file": "C:\\Users\\阳光宅男\\Desktop\\AI提示词\\二食堂.json",
+    "canteen_id": "二食堂",
+    "inserted": 0,
+    "updated": 241,
+    "errors": 0,
+    "error_items": [],
+    "backup_file": "C:\\Users\\阳光宅男\\Desktop\\AI提示词\\data\\backups\\menu_db-20260506-084222.json"
+  }
+]

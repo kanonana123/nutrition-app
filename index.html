@@ -132,6 +132,8 @@
                 <option value="全部">全部食堂</option>
                 <option v-for="c in canteenOptions" :key="c" :value="c">{{ c }}</option>
               </select>
+              <input v-model.trim="menuSearchQuery" type="text" placeholder="搜索菜品/窗口/分类"
+                class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 min-w-[180px]">
               <select v-model="menuViewMode"
                 class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500">
                 <option value="cards">卡片视图</option>
@@ -511,6 +513,20 @@
       return "unknown";
     };
 
+    const readDishName = (item) => {
+      if (typeof item === "string") return normalizeText(item);
+      if (!item || typeof item !== "object") return "";
+      return normalizeText(item["菜品名称"] || item["名称"] || item["name"] || "");
+    };
+
+    const readDishPriceAndUnit = (item) => {
+      if (typeof item !== "object" || item === null) return { price: null, unit: null };
+      const raw = item["价格"] ?? item["price"] ?? null;
+      const price = parseNumberFromText(raw);
+      const unit = typeof raw === "string" && raw.includes("/") ? normalizeText(raw.split("/").slice(1).join("/")) : null;
+      return { price, unit };
+    };
+
     const buildDish = (dish) => {
       const priceLabel = dish.price === null || dish.price === undefined ? "未标价" : `¥${dish.price}`;
       const nutritionInfo = dish.nutrition_info && typeof dish.nutrition_info === "object" ? dish.nutrition_info : mockNutrition(dish.name);
@@ -652,9 +668,10 @@
           }
 
           if (Array.isArray(val)) {
-            for (const dishName of val) {
-              const name = normalizeText(dishName || "");
+            for (const dishItem of val) {
+              const name = readDishName(dishItem);
               if (!name) continue;
+              const { price, unit } = readDishPriceAndUnit(dishItem);
               const mealPeriod = guessMealPeriod(canteenId, windowName, categoryKey);
               const key = `${canteenId}::${windowName}::${name}`;
               dishes.push(buildDish({
@@ -664,8 +681,8 @@
                 window_name: windowName,
                 category: categoryKey,
                 name,
-                price: null,
-                unit: null,
+                price,
+                unit,
                 meal_period: mealPeriod,
                 store_name: `${canteenId} · ${windowName}${categoryKey ? ` · ${categoryKey}` : ""}`,
                 nutrition_info: mockNutrition(name),
@@ -728,6 +745,7 @@
         const isLoadingData = ref(false);
         const fileInput = ref(null);
         const selectedMenuCanteen = ref("全部");
+        const menuSearchQuery = ref("");
         const menuViewMode = ref("cards");
         const importCanteenOverride = ref("auto");
 
@@ -759,8 +777,15 @@
         });
 
         const displayedMenu = computed(() => {
-          if (selectedMenuCanteen.value === "全部") return menu.value;
-          return menu.value.filter(d => d.canteen_id === selectedMenuCanteen.value);
+          const byCanteen = selectedMenuCanteen.value === "全部"
+            ? menu.value
+            : menu.value.filter(d => d.canteen_id === selectedMenuCanteen.value);
+          const q = normalizeText(menuSearchQuery.value).toLowerCase();
+          if (!q) return byCanteen;
+          return byCanteen.filter(d => {
+            const text = `${d.name || ""} ${d.window_name || ""} ${d.category || ""} ${d.store_name || ""}`.toLowerCase();
+            return text.includes(q);
+          });
         });
 
         const menuTree = computed(() => {
@@ -1212,6 +1237,7 @@
           toast,
           fileInput,
           selectedMenuCanteen,
+          menuSearchQuery,
           menuViewMode,
           importCanteenOverride,
           displayedMenu,

@@ -1,7 +1,20 @@
 {
   "sources": [
-    { "canteen_id": "二食堂", "file": "./data/mishu-leifan.json" },
-    { "canteen_id": "一食堂", "file": "./一食堂.json" },
-    { "canteen_id": "三食堂", "file": "./三食堂.json" }
+    {
+      "canteen_id": "二食堂",
+      "file": "./二食堂.json"
+    },
+    {
+      "canteen_id": "二食堂",
+      "file": "./data/mishu-leifan.json"
+    },
+    {
+      "canteen_id": "一食堂",
+      "file": "./一食堂.json"
+    },
+    {
+      "canteen_id": "三食堂",
+      "file": "./三食堂.json"
+    }
   ]
 }
