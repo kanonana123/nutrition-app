@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>营养分析师 - 科学膳食推荐</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    [v-cloak] {
+      display: none;
+    }
+
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity 0.3s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+      opacity: 0;
+    }
+
+    .slide-fade-enter-active {
+      transition: all 0.4s ease-out;
+    }
+
+    .slide-fade-leave-active {
+      transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1);
+    }
+
+    .slide-fade-enter-from,
+    .slide-fade-leave-to {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+  <div id="app" v-cloak class="flex-1 flex flex-col">
+    <header class="bg-green-600 text-white shadow-lg sticky top-0 z-50">
+      <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold flex items-center tracking-wide">
+          <svg class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+            </path>
+          </svg>
+          营养分析师
+        </h1>
+        <nav class="flex gap-2">
+          <button @click="currentTab='profile'"
+            :class="[currentTab==='profile' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">健康档案</button>
+          <button @click="currentTab='menu'"
+            :class="[currentTab==='menu' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">菜单系统</button>
+          <button @click="currentTab='recommend'"
+            :class="[currentTab==='recommend' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">智能推荐</button>
+        </nav>
+      </div>
+    </header>
+
+    <Transition name="slide-fade">
+      <div v-if="toast.show"
+        class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-medium flex items-center gap-2"
+        :class="toast.type==='error' ? 'bg-red-500' : 'bg-green-500'">
+        <span>{{ toast.message }}</span>
+      </div>
+    </Transition>
+
+    <main class="container mx-auto px-4 py-8 flex-1">
+      <Transition name="fade" mode="out-in">
+        <section v-if="currentTab==='profile'" class="max-w-2xl mx-auto mt-8">
+          <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">定制您的健康档案</h2>
+            <form @submit.prevent="saveProfile" class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">选择食堂（推荐结果仅在该食堂内）</label>
+                  <select v-model="profile.canteen_id"
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-white">
+                    <option v-for="c in canteenOptions" :key="c" :value="c">{{ c }}</option>
+                    <option v-if="!canteenOptions.length" value="二食堂">二食堂</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">年龄 (岁)</label>
+                  <input v-model.number="profile.age" type="number" min="1" max="120" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">身高 (cm)</label>
+                  <input v-model.number="profile.height" type="number" min="50" max="300" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">体重 (kg)</label>
+                  <input v-model.number="profile.weight" type="number" min="10" max="300" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">活动水平</label>
+                  <select v-model="profile.activity_level"
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-white">
+                    <option value="low">轻度活动 (久坐)</option>
+                    <option value="medium">中度活动 (每周锻炼3-5天)</option>
+                    <option value="high">重度活动 (高强度)</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" :disabled="isSubmitting"
+                class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition shadow-md font-bold text-lg disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+                <span>{{ isSubmitting ? '正在生成推荐...' : '保存并获取智能推荐' }}</span>
+              </button>
+            </form>
+          </div>
+        </section>
+      </Transition>
+
+      <Transition name="fade" mode="out-in">
+        <section v-if="currentTab==='menu'" class="space-y-6">
+          <div class="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-3 border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">餐厅菜单管理与营养数据库</h2>
+              <p class="text-gray-500 text-sm mt-1">以食堂为单位分层（食堂 → 窗口 → 菜品），支持批量导入、清洗、验证与导入版本记录</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+              <select v-model="selectedMenuCanteen"
+                class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500">
+                <option value="全部">全部食堂</option>
+                <option v-for="c in canteenOptions" :key="c" :value="c">{{ c }}</option>
+              </select>
+              <select v-model="menuViewMode"
+                class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500">
+                <option value="cards">卡片视图</option>
+                <option value="tree">层级视图</option>
+              </select>
+              <select v-model="importCanteenOverride"
+                class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500">
+                <option value="auto">导入：自动识别</option>
+                <option v-for="c in canteenOptionsForImport" :key="c" :value="c">导入：{{ c }}</option>
+              </select>
+              <input ref="fileInput" type="file" accept=".json" multiple class="hidden" @change="onFilesSelected">
+              <button @click="triggerFilePicker" :disabled="isLoadingData"
+                class="text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-md font-medium transition disabled:opacity-70 disabled:cursor-not-allowed">
+                {{ isLoadingData ? '导入中...' : '导入本地JSON' }}
+              </button>
+              <button @click="reloadMenu" :disabled="isLoadingMenu"
+                class="text-sm bg-green-50 text-green-700 hover:bg-green-100 px-4 py-2 rounded-md font-medium transition disabled:opacity-70 disabled:cursor-not-allowed">
+                {{ isLoadingMenu ? '刷新中...' : '刷新菜单' }}
+              </button>
+              <button @click="runIntegrityCheck" :disabled="isLoadingMenu || isLoadingData"
+                class="text-sm bg-gray-50 text-gray-700 hover:bg-gray-100 px-4 py-2 rounded-md font-medium transition disabled:opacity-70 disabled:cursor-not-allowed">
+                数据校验
+              </button>
+            </div>
+          </div>
+
+          <div v-if="lastImportSummary"
+            class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div class="text-sm">
+              <div class="font-bold text-gray-800">最近一次导入结果</div>
+              <div class="mt-1 text-gray-600">
+                来源 {{ lastImportSummary.source_label }} · 新增 {{ lastImportSummary.inserted }} · 更新 {{
+                lastImportSummary.updated }} · 跳过 {{ lastImportSummary.skipped }} · 错误 {{ lastImportSummary.errors }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500">时间：{{ new Date(lastImportSummary.imported_at).toLocaleString()
+                }}</div>
+            </div>
+            <div class="flex gap-2 items-center">
+              <button v-if="lastImportSummary.errors" @click="toggleLastErrors"
+                class="text-sm bg-red-50 text-red-700 hover:bg-red-100 px-4 py-2 rounded-md font-medium transition">
+                {{ showLastErrors ? '收起错误' : '查看错误' }}
+              </button>
+              <button v-if="lastImportSummary.errors" @click="downloadLastErrorReport"
+                class="text-sm bg-orange-50 text-orange-700 hover:bg-orange-100 px-4 py-2 rounded-md font-medium transition">
+                下载错误报告
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="showLastErrors && lastImportSummary && lastImportSummary.error_items && lastImportSummary.error_items.length"
+            class="bg-white border border-red-100 rounded-xl p-4 shadow-sm">
+            <div class="font-bold text-gray-800">错误明细（最多展示 {{ lastImportSummary.error_items.length }} 条）</div>
+            <div class="mt-3 space-y-2">
+              <div v-for="(e, idx) in lastImportSummary.error_items" :key="idx"
+                class="text-sm border border-red-50 rounded-lg px-3 py-2">
+                <div class="flex flex-col sm:flex-row sm:justify-between gap-2">
+                  <div class="text-gray-700 break-all">{{ e.message }}</div>
+                  <div class="text-xs text-gray-400 shrink-0">{{ e.file || '未知来源' }}</div>
+                </div>
+                <div v-if="e.sample" class="mt-1 text-xs text-gray-500 break-all">{{ e.sample }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="integrityReport" class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+              <div class="font-bold text-gray-800">数据校验报告</div>
+              <div class="text-xs text-gray-500">生成时间：{{ new Date(integrityReport.generated_at).toLocaleString() }}
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div class="border border-gray-100 rounded-lg p-3">
+                <div class="text-xs text-gray-500">菜品总数</div>
+                <div class="text-2xl font-black text-gray-800">{{ integrityReport.total_dishes }}</div>
+              </div>
+              <div class="border border-gray-100 rounded-lg p-3">
+                <div class="text-xs text-gray-500">一食堂/三食堂</div>
+                <div class="text-sm text-gray-700 mt-1">
+                  一食堂 {{ integrityReport.canteen_counts['一食堂'] || 0 }} · 三食堂 {{
+                  integrityReport.canteen_counts['三食堂'] || 0 }}
+                </div>
+                <div class="text-xs text-gray-500 mt-1">二食堂 {{ integrityReport.canteen_counts['二食堂'] || 0 }}</div>
+              </div>
+              <div class="border border-gray-100 rounded-lg p-3">
+                <div class="text-xs text-gray-500">问题条目</div>
+                <div class="text-2xl font-black"
+                  :class="integrityReport.issues.length ? 'text-red-600' : 'text-green-600'">
+                  {{ integrityReport.issues.length }}
+                </div>
+              </div>
+            </div>
+            <div v-if="integrityReport.issues.length" class="mt-4">
+              <div class="font-bold text-gray-800">发现的问题</div>
+              <div class="mt-2 space-y-2">
+                <div v-for="(it, idx) in integrityReport.issues.slice(0,50)" :key="idx"
+                  class="text-sm border border-gray-100 rounded-lg px-3 py-2 text-gray-700">
+                  {{ it }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="importBatches.length" class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div class="font-bold text-gray-800">导入记录（最近 {{ Math.min(importBatches.length, 5) }} 次）</div>
+              <div class="text-xs text-gray-500">数据会保存在本机浏览器存储中</div>
+            </div>
+            <div class="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-2">
+              <div v-for="b in importBatches.slice(0,5)" :key="b.batch_id"
+                class="text-sm border border-gray-100 rounded-lg px-3 py-2">
+                <div class="flex justify-between gap-3">
+                  <div class="truncate text-gray-700" :title="b.source_label || b.source">{{ b.source_label || b.source
+                    }}</div>
+                  <div class="text-xs text-gray-400">{{ new Date(b.imported_at).toLocaleString() }}</div>
+                </div>
+                <div class="mt-1 text-xs text-gray-500">
+                  新增 {{ b.inserted }} · 更新 {{ b.updated }} · 跳过 {{ b.skipped || 0 }} · 错误 {{ b.errors }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="isLoadingMenu" class="text-center py-12 flex flex-col items-center justify-center space-y-4">
+            <svg class="animate-spin h-10 w-10 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+              viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+              </path>
+            </svg>
+            <p class="text-gray-500 font-medium">正在加载菜单数据库...</p>
+          </div>
+
+          <div v-else-if="!menu.length" class="text-center py-12 text-gray-500">
+            暂无菜品数据。请检查 data/manifest.json 或使用“导入本地JSON”。
+          </div>
+
+          <div v-else-if="menuViewMode==='tree'" class="space-y-4">
+            <div v-for="c in menuTree" :key="c.canteen_id"
+              class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+              <div class="flex justify-between items-center gap-3">
+                <div class="font-black text-lg text-gray-900">{{ c.canteen_id }}</div>
+                <div class="text-xs text-gray-500">窗口 {{ c.windows.length }} · 菜品 {{ c.dish_count }}</div>
+              </div>
+              <div class="mt-3 space-y-2">
+                <details v-for="w in c.windows" :key="w.window_key"
+                  class="border border-gray-100 rounded-lg px-3 py-2 bg-gray-50">
+                  <summary class="cursor-pointer select-none flex justify-between items-center gap-3">
+                    <span class="font-bold text-gray-800">{{ w.window_name }}</span>
+                    <span class="text-xs text-gray-500">{{ w.dishes.length }} 道</span>
+                  </summary>
+                  <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div v-for="d in w.dishes" :key="d.key"
+                      class="bg-white border border-gray-100 rounded-md px-3 py-2">
+                      <div class="flex justify-between gap-3">
+                        <div class="text-sm font-bold text-gray-800 truncate" :title="d.name">{{ d.name }}</div>
+                        <div class="text-xs text-gray-500">{{ d.price_label }}</div>
+                      </div>
+                      <div class="mt-1 text-xs text-gray-500 truncate" :title="d.store_name">{{ d.store_name }}</div>
+                      <div class="mt-1 text-xs text-gray-400">供应时段: {{ d.meal_period || '全天' }}</div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div v-for="dish in displayedMenu" :key="dish.key"
+              class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition duration-300">
+              <div
+                class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 flex justify-between items-start">
+                <div class="pr-3">
+                  <h3 class="font-bold text-lg text-gray-800 leading-tight">{{ dish.name }}</h3>
+                  <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
+                </div>
+                <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{{ dish.price_label
+                  }}</span>
+              </div>
+              <div class="p-5">
+                <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">热量</span><span
+                      class="font-bold text-gray-700">{{ dish.nutrition_info.calories }} <span
+                        class="font-normal text-xs text-gray-500">kcal</span></span></div>
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">蛋白质</span><span
+                      class="font-bold text-blue-600">{{ dish.nutrition_info.protein }} <span
+                        class="font-normal text-xs text-blue-400">g</span></span></div>
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">脂肪</span><span
+                      class="font-bold text-yellow-600">{{ dish.nutrition_info.fat }} <span
+                        class="font-normal text-xs text-yellow-400">g</span></span></div>
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">碳水</span><span
+                      class="font-bold text-green-600">{{ dish.nutrition_info.carbs }} <span
+                        class="font-normal text-xs text-green-400">g</span></span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-50 text-xs text-gray-400">来源: {{ dish.nutrition_info.source
+                  }}</div>
+                <div class="mt-2 text-xs text-gray-400">供应时段: {{ dish.meal_period || '全天' }}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Transition>
+
+      <Transition name="fade" mode="out-in">
+        <section v-if="currentTab==='recommend'" class="space-y-6">
+          <div v-if="!recommendation"
+            class="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">数据不足</h2>
+            <p class="text-gray-500 mb-6 text-center max-w-md">请先完善健康档案，并确保菜单已加载。</p>
+            <button @click="currentTab='profile'"
+              class="bg-green-600 text-white py-2 px-8 rounded-full hover:bg-green-700 transition font-medium shadow-md">去填写健康档案</button>
+          </div>
+
+          <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+              <div
+                class="bg-gradient-to-br from-green-50 to-emerald-100 p-6 rounded-xl shadow-sm border border-green-200">
+                <h2 class="text-xl font-bold text-green-900 mb-2">分析师建议</h2>
+                <p class="text-green-800 leading-relaxed text-lg">{{ recommendation.reasoning }}</p>
+              </div>
+
+              <h3 class="text-xl font-bold mt-8 mb-4 text-gray-800">为您推荐的菜品组合（{{ recommendation.canteen_id }}）</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div v-for="dish in recommendation.recommended_dishes" :key="dish.key"
+                  class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:border-green-300 transition">
+                  <div class="flex justify-between items-start mb-4 border-b border-gray-50 pb-3">
+                    <div class="pr-3">
+                      <h4 class="font-bold text-lg text-gray-800">{{ dish.name }}</h4>
+                      <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
+                    </div>
+                    <span class="text-sm bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold">{{ dish.price_label
+                      }}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="flex items-center gap-1 text-gray-600"><span class="font-bold">{{
+                        dish.nutrition_info.calories }}</span> kcal</div>
+                    <div class="flex items-center gap-1 text-blue-600"><span class="font-bold">{{
+                        dish.nutrition_info.protein }}g</span> 蛋白</div>
+                  </div>
+                  <div class="mt-3 text-xs text-gray-400">来源: {{ dish.nutrition_info.source }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 h-fit sticky top-24">
+              <h3 class="text-lg font-bold mb-6 text-center text-gray-800">本餐宏量营养素占比</h3>
+              <div id="nutritionChart" style="width:100%;height:280px;"></div>
+              <div class="mt-6 pt-5 border-t border-gray-100">
+                <div class="flex justify-between items-center mb-3">
+                  <span class="text-gray-500 font-medium">单餐总热量</span>
+                  <span class="font-black text-2xl text-orange-500">{{ recommendation.total_calories.toFixed(0) }} <span
+                      class="text-sm font-normal text-gray-400">kcal</span></span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-500 font-medium">单餐总蛋白</span>
+                  <span class="font-black text-xl text-blue-500">{{ recommendation.total_protein.toFixed(1) }} <span
+                      class="text-sm font-normal text-gray-400">g</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Transition>
+    </main>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted, nextTick, computed } = Vue;
+
+    const SOURCES = [
+      "《中国食物成分表 第6版》",
+      "美国农业部(USDA)营养数据库",
+      "国家卫生健康委 / 国民营养相关指南"
+    ];
+
+    const BASE_NUTRITION = {
+      "土豆牛腩": { calories: 450, protein: 25, fat: 20, carbs: 40 },
+      "红烧肉": { calories: 600, protein: 15, fat: 50, carbs: 20 },
+      "青椒肉丝": { calories: 350, protein: 20, fat: 25, carbs: 10 },
+      "宫保鸡丁": { calories: 400, protein: 22, fat: 20, carbs: 30 },
+      "水煮肉片": { calories: 550, protein: 25, fat: 40, carbs: 15 }
+    };
+
+    const CANEEN_ORDER = ["一食堂", "二食堂", "三食堂"];
+
+    const hashString = (input) => {
+      let hash = 2166136261;
+      for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = (hash * 16777619) >>> 0;
+      }
+      return hash >>> 0;
+    };
+
+    const mockNutrition = (dishName) => {
+      if (BASE_NUTRITION[dishName]) return { ...BASE_NUTRITION[dishName], source: SOURCES[0] };
+      const h = hashString(String(dishName || ""));
+      const calories = 300 + (h % 301);
+      const protein = 10 + ((h >>> 2) % 21);
+      const fat = 10 + ((h >>> 5) % 31);
+      const carbs = 10 + ((h >>> 8) % 41);
+      const source = SOURCES[(h >>> 12) % SOURCES.length];
+      return { calories, protein, fat, carbs, source };
+    };
+
+    const STORAGE = {
+      dishes: "nutrition_dishes_v2",
+      imports: "nutrition_import_batches_v2",
+      legacyDishes: "nutrition_dishes_v1",
+      legacyImports: "nutrition_import_batches_v1"
+    };
+
+    const createBatchId = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+    const normalizeText = (value) => {
+      const s = String(value ?? "").replace(/\uFEFF/g, "").trim();
+      return s.replace(/\s+/g, " ");
+    };
+
+    const parseNumberFromText = (value) => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value !== "string") return null;
+      const match = value.replace(",", ".").match(/(\d+(\.\d+)?)/);
+      if (!match) return null;
+      const n = Number(match[1]);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const cleanJsonText = (text) => {
+      let s = String(text ?? "");
+      s = s.replace(/^\uFEFF/, "");
+      s = s.replace(/,(\s*[}\]])/g, "$1");
+      return s;
+    };
+
+    const safeJsonParse = (rawText) => {
+      const text = cleanJsonText(rawText);
+      try {
+        return { ok: true, data: JSON.parse(text), error: null };
+      } catch (e) {
+        return { ok: false, data: null, error: e instanceof Error ? e.message : String(e) };
+      }
+    };
+
+    const guessMealPeriod = (canteenId, windowName, category) => {
+      const text = `${canteenId || ""} ${windowName || ""} ${category || ""}`.toLowerCase();
+      if (text.includes("早") || text.includes("粥") || text.includes("早茶") || text.includes("包") || text.includes("豆浆")) return "早餐";
+      if (text.includes("夜") || text.includes("宵")) return "夜宵";
+      return "午餐/晚餐";
+    };
+
+    const normalizeCanteenId = (id) => {
+      const s = normalizeText(id);
+      if (!s) return null;
+      for (const c of CANEEN_ORDER) {
+        if (s.includes(c)) return c;
+      }
+      return s;
+    };
+
+    const inferCanteenId = (fileName, jsonData) => {
+      const name = String(fileName || "");
+      const canteenName = String(jsonData?.["食堂名称"] || "");
+      const merged = `${name} ${canteenName}`;
+      if (merged.includes("一食堂")) return "一食堂";
+      if (merged.includes("二食堂")) return "二食堂";
+      if (merged.includes("三食堂")) return "三食堂";
+      if (jsonData?.["店铺名称"]) return "二食堂";
+      return "二食堂";
+    };
+
+    const detectFormat = (jsonData) => {
+      if (jsonData && Array.isArray(jsonData["食堂窗口信息"])) return "canteen_windows";
+      if (jsonData && Array.isArray(jsonData["档口列表"])) return "canteen_stalls";
+      if (jsonData && Array.isArray(jsonData["菜品列表"])) return "simple_menu";
+      return "unknown";
+    };
+
+    const buildDish = (dish) => {
+      const priceLabel = dish.price === null || dish.price === undefined ? "未标价" : `¥${dish.price}`;
+      const nutritionInfo = dish.nutrition_info && typeof dish.nutrition_info === "object" ? dish.nutrition_info : mockNutrition(dish.name);
+      const calories = Number.isFinite(Number(nutritionInfo.calories)) ? Number(nutritionInfo.calories) : mockNutrition(dish.name).calories;
+      const protein = Number.isFinite(Number(nutritionInfo.protein)) ? Number(nutritionInfo.protein) : mockNutrition(dish.name).protein;
+      const fat = Number.isFinite(Number(nutritionInfo.fat)) ? Number(nutritionInfo.fat) : mockNutrition(dish.name).fat;
+      const carbs = Number.isFinite(Number(nutritionInfo.carbs)) ? Number(nutritionInfo.carbs) : mockNutrition(dish.name).carbs;
+      const source = normalizeText(nutritionInfo.source || mockNutrition(dish.name).source) || SOURCES[0];
+
+      return {
+        ...dish,
+        canteen_id: normalizeCanteenId(dish.canteen_id),
+        window_id: dish.window_id === null || dish.window_id === undefined ? null : normalizeText(dish.window_id),
+        window_name: normalizeText(dish.window_name) || "未命名窗口",
+        category: dish.category ? normalizeText(dish.category) : null,
+        name: normalizeText(dish.name),
+        price: dish.price === null || dish.price === undefined ? null : Number(dish.price),
+        unit: dish.unit ? normalizeText(dish.unit) : null,
+        meal_period: dish.meal_period ? normalizeText(dish.meal_period) : null,
+        store_name: normalizeText(dish.store_name) || "",
+        source_file: dish.source_file ? String(dish.source_file) : null,
+        nutrition_info: { calories, protein, fat, carbs, source },
+        price_label: priceLabel
+      };
+    };
+
+    const validateDish = (dish) => {
+      const errors = [];
+      if (!dish.name) errors.push("菜品名称缺失");
+      if (!dish.canteen_id) errors.push("食堂标识缺失");
+      if (!dish.window_name) errors.push("窗口名称缺失");
+      if (!dish.nutrition_info || typeof dish.nutrition_info !== "object") errors.push("营养成分缺失");
+      return errors;
+    };
+
+    const parseSimpleMenu = (canteenId, jsonData, sourceFile) => {
+      const storeName = normalizeText(jsonData["店铺名称"] || "未命名店铺");
+      const dishList = Array.isArray(jsonData["菜品列表"]) ? jsonData["菜品列表"] : [];
+      const dishes = [];
+      for (const item of dishList) {
+        const name = normalizeText(item?.["菜品名称"] || "");
+        if (!name) continue;
+        const price = parseNumberFromText(item?.["价格"]);
+        const unit = item?.["单位"] ? normalizeText(item["单位"]) : null;
+        const windowName = storeName;
+        const key = `${canteenId}::${windowName}::${name}`;
+        dishes.push(buildDish({
+          key,
+          canteen_id: canteenId,
+          window_id: null,
+          window_name: windowName,
+          category: null,
+          name,
+          price,
+          unit,
+          meal_period: "午餐/晚餐",
+          store_name: `${canteenId} · ${windowName}`,
+          nutrition_info: mockNutrition(name),
+          source_file: sourceFile
+        }));
+      }
+      return dishes;
+    };
+
+    const parseSanShiTang = (canteenId, jsonData, sourceFile) => {
+      const windows = Array.isArray(jsonData["食堂窗口信息"]) ? jsonData["食堂窗口信息"] : [];
+      const dishes = [];
+      for (const w of windows) {
+        const windowId = w?.["窗口编号"] ? normalizeText(w["窗口编号"]) : null;
+        const windowName = normalizeText(w?.["窗口名称"] || "未命名窗口");
+        const categories = Array.isArray(w?.["分类"]) ? w["分类"] : [];
+        for (const c of categories) {
+          const categoryName = c?.["类别"] ? normalizeText(c["类别"]) : null;
+          const list = Array.isArray(c?.["菜品列表"]) ? c["菜品列表"] : [];
+          for (const item of list) {
+            const name = normalizeText(item?.["菜品名称"] || "");
+            if (!name) continue;
+            const price = parseNumberFromText(item?.["价格"]);
+            const unit = item?.["单位"] ? normalizeText(item["单位"]) : null;
+            const mealPeriod = guessMealPeriod(canteenId, windowName, categoryName);
+            const key = `${canteenId}::${windowName}::${name}`;
+            dishes.push(buildDish({
+              key,
+              canteen_id: canteenId,
+              window_id: windowId,
+              window_name: windowName,
+              category: categoryName,
+              name,
+              price,
+              unit,
+              meal_period: mealPeriod,
+              store_name: `${canteenId} · ${windowName}${categoryName ? ` · ${categoryName}` : ""}`,
+              nutrition_info: mockNutrition(name),
+              source_file: sourceFile
+            }));
+          }
+        }
+      }
+      return dishes;
+    };
+
+    const parseYiShiTang = (canteenId, jsonData, sourceFile) => {
+      const stalls = Array.isArray(jsonData["档口列表"]) ? jsonData["档口列表"] : [];
+      const dishes = [];
+      for (let i = 0; i < stalls.length; i++) {
+        const stall = stalls[i] || {};
+        const windowName = stall["档口名称"] ? normalizeText(stall["档口名称"]) : `档口${i + 1}`;
+        const windowId = String(i + 1);
+        const keys = Object.keys(stall);
+        for (const k of keys) {
+          if (k === "档口名称" || k === "基础信息" || k === "备注") continue;
+          const val = stall[k];
+          const categoryKey = normalizeText(k);
+          if (k === "分区菜品" && val && typeof val === "object" && !Array.isArray(val)) {
+            for (const zoneName of Object.keys(val)) {
+              const arr = Array.isArray(val[zoneName]) ? val[zoneName] : [];
+              for (const dishName of arr) {
+                const name = normalizeText(dishName || "");
+                if (!name) continue;
+                const mealPeriod = guessMealPeriod(canteenId, windowName, zoneName);
+                const key = `${canteenId}::${windowName}::${name}`;
+                dishes.push(buildDish({
+                  key,
+                  canteen_id: canteenId,
+                  window_id: windowId,
+                  window_name: windowName,
+                  category: normalizeText(zoneName),
+                  name,
+                  price: null,
+                  unit: null,
+                  meal_period: mealPeriod,
+                  store_name: `${canteenId} · ${windowName}${zoneName ? ` · ${normalizeText(zoneName)}` : ""}`,
+                  nutrition_info: mockNutrition(name),
+                  source_file: sourceFile
+                }));
+              }
+            }
+            continue;
+          }
+
+          if (Array.isArray(val)) {
+            for (const dishName of val) {
+              const name = normalizeText(dishName || "");
+              if (!name) continue;
+              const mealPeriod = guessMealPeriod(canteenId, windowName, categoryKey);
+              const key = `${canteenId}::${windowName}::${name}`;
+              dishes.push(buildDish({
+                key,
+                canteen_id: canteenId,
+                window_id: windowId,
+                window_name: windowName,
+                category: categoryKey,
+                name,
+                price: null,
+                unit: null,
+                meal_period: mealPeriod,
+                store_name: `${canteenId} · ${windowName}${categoryKey ? ` · ${categoryKey}` : ""}`,
+                nutrition_info: mockNutrition(name),
+                source_file: sourceFile
+              }));
+            }
+            continue;
+          }
+
+          if (val && typeof val === "object") {
+            for (const dishName of Object.keys(val)) {
+              const name = normalizeText(dishName || "");
+              if (!name) continue;
+              const priceRaw = val[dishName];
+              const price = parseNumberFromText(priceRaw);
+              const unit = typeof priceRaw === "string" && priceRaw.includes("/") ? normalizeText(priceRaw.split("/").slice(1).join("/")) : null;
+              const mealPeriod = guessMealPeriod(canteenId, windowName, categoryKey);
+              const key = `${canteenId}::${windowName}::${name}`;
+              dishes.push(buildDish({
+                key,
+                canteen_id: canteenId,
+                window_id: windowId,
+                window_name: windowName,
+                category: categoryKey,
+                name,
+                price,
+                unit,
+                meal_period: mealPeriod,
+                store_name: `${canteenId} · ${windowName}${categoryKey ? ` · ${categoryKey}` : ""}`,
+                nutrition_info: mockNutrition(name),
+                source_file: sourceFile
+              }));
+            }
+          }
+        }
+      }
+      return dishes;
+    };
+
+    const parseAnyMenu = (sourceCanteenId, jsonData, sourceFile) => {
+      const canteenId = normalizeCanteenId(sourceCanteenId) || inferCanteenId(sourceFile, jsonData);
+      const format = detectFormat(jsonData);
+      if (format === "canteen_windows") return { ok: true, canteen_id: canteenId, format, dishes: parseSanShiTang(canteenId, jsonData, sourceFile), error: null };
+      if (format === "canteen_stalls") return { ok: true, canteen_id: canteenId, format, dishes: parseYiShiTang(canteenId, jsonData, sourceFile), error: null };
+      if (format === "simple_menu") return { ok: true, canteen_id: canteenId, format, dishes: parseSimpleMenu(canteenId, jsonData, sourceFile), error: null };
+      return { ok: false, canteen_id: canteenId, format, dishes: [], error: "未识别的JSON菜单格式" };
+    };
+
+    const toImportErrorItem = (message, file, sample) => ({ message: String(message || ""), file: file ? String(file) : null, sample: sample ? String(sample) : null });
+
+    createApp({
+      setup() {
+        const currentTab = ref('profile');
+        const menu = ref([]);
+        const profile = ref({ canteen_id: "二食堂", age: 25, height: 175, weight: 70, activity_level: 'medium' });
+
+        const recommendation = ref(null);
+        const isSubmitting = ref(false);
+        const isLoadingMenu = ref(true);
+        const isLoadingData = ref(false);
+        const fileInput = ref(null);
+        const selectedMenuCanteen = ref("全部");
+        const menuViewMode = ref("cards");
+        const importCanteenOverride = ref("auto");
+
+        const importBatches = ref([]);
+        const lastImportSummary = ref(null);
+        const showLastErrors = ref(false);
+        const integrityReport = ref(null);
+
+        const toast = ref({ show: false, message: '', type: 'success' });
+        let toastTimer = null;
+        const showToast = (msg, type = 'success') => {
+          toast.value = { show: true, message: String(msg || ""), type };
+          if (toastTimer) clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => { toast.value.show = false; }, 3000);
+        };
+
+        const canteenOptions = computed(() => {
+          const s = new Set(menu.value.map(d => d.canteen_id).filter(Boolean));
+          const rest = Array.from(s).filter(x => !CANEEN_ORDER.includes(x)).sort();
+          const ordered = CANEEN_ORDER.filter(x => s.has(x)).concat(rest);
+          return ordered.length ? ordered : ["二食堂"];
+        });
+
+        const canteenOptionsForImport = computed(() => {
+          const s = new Set(CANEEN_ORDER.concat(canteenOptions.value).filter(Boolean));
+          const ordered = CANEEN_ORDER.filter(x => s.has(x));
+          const rest = Array.from(s).filter(x => !CANEEN_ORDER.includes(x)).sort();
+          return ordered.concat(rest);
+        });
+
+        const displayedMenu = computed(() => {
+          if (selectedMenuCanteen.value === "全部") return menu.value;
+          return menu.value.filter(d => d.canteen_id === selectedMenuCanteen.value);
+        });
+
+        const menuTree = computed(() => {
+          const items = displayedMenu.value;
+          const byCanteen = new Map();
+          for (const d of items) {
+            const canteenId = d.canteen_id || "未标识食堂";
+            if (!byCanteen.has(canteenId)) byCanteen.set(canteenId, new Map());
+            const byWindow = byCanteen.get(canteenId);
+            const wKey = `${canteenId}::${d.window_name || "未命名窗口"}`;
+            if (!byWindow.has(wKey)) byWindow.set(wKey, { window_key: wKey, window_name: d.window_name || "未命名窗口", dishes: [] });
+            byWindow.get(wKey).dishes.push(d);
+          }
+
+          const canteens = Array.from(byCanteen.keys());
+          const ordered = CANEEN_ORDER.filter(x => canteens.includes(x)).concat(canteens.filter(x => !CANEEN_ORDER.includes(x)).sort());
+
+          return ordered.map(canteenId => {
+            const windows = Array.from(byCanteen.get(canteenId).values())
+              .map(w => ({ ...w, dishes: w.dishes.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "zh-CN")) }))
+              .sort((a, b) => String(a.window_name).localeCompare(String(b.window_name), "zh-CN"));
+            const dishCount = windows.reduce((s, w) => s + w.dishes.length, 0);
+            return { canteen_id: canteenId, windows, dish_count: dishCount };
+          });
+        });
+
+        const loadDb = () => {
+          const dishesRaw = localStorage.getItem(STORAGE.dishes);
+          const batchesRaw = localStorage.getItem(STORAGE.imports);
+          if (dishesRaw || batchesRaw) {
+            const dishes = dishesRaw ? JSON.parse(dishesRaw) : [];
+            const batches = batchesRaw ? JSON.parse(batchesRaw) : [];
+            return { dishes, batches };
+          }
+
+          const legacyDishesRaw = localStorage.getItem(STORAGE.legacyDishes);
+          const legacyBatchesRaw = localStorage.getItem(STORAGE.legacyImports);
+          const legacyDishes = legacyDishesRaw ? JSON.parse(legacyDishesRaw) : [];
+          const legacyBatches = legacyBatchesRaw ? JSON.parse(legacyBatchesRaw) : [];
+          if (Array.isArray(legacyDishes) && legacyDishes.length) {
+            const normalized = legacyDishes.map(d => buildDish(d)).filter(d => validateDish(d).length === 0);
+            const migrated = { dishes: normalized, batches: Array.isArray(legacyBatches) ? legacyBatches : [] };
+            saveDb(migrated);
+            return migrated;
+          }
+          return { dishes: [], batches: [] };
+        };
+
+        const saveDb = (db) => {
+          localStorage.setItem(STORAGE.dishes, JSON.stringify(db.dishes || []));
+          localStorage.setItem(STORAGE.imports, JSON.stringify(db.batches || []));
+        };
+
+        const mergeDishes = (dishes, sourceLabel, sourceFile) => {
+          const existing = new Map(menu.value.map(d => [d.key, d]));
+          let inserted = 0;
+          let updated = 0;
+          let skipped = 0;
+          const errorItems = [];
+
+          for (const raw of dishes) {
+            const d = buildDish(raw);
+            const validationErrors = validateDish(d);
+            if (validationErrors.length) {
+              skipped += 1;
+              errorItems.push(toImportErrorItem(`条目校验失败：${validationErrors.join("、")}`, sourceFile, JSON.stringify({ key: d.key, name: d.name, canteen_id: d.canteen_id, window_name: d.window_name })));
+              continue;
+            }
+
+            const prev = existing.get(d.key);
+            if (!prev) {
+              existing.set(d.key, d);
+              inserted += 1;
+              continue;
+            }
+
+            const next = { ...prev };
+            if ((next.price === null || next.price === undefined) && d.price !== null && d.price !== undefined) next.price = d.price;
+            if (!next.unit && d.unit) next.unit = d.unit;
+            if (!next.category && d.category) next.category = d.category;
+            if (!next.window_id && d.window_id) next.window_id = d.window_id;
+            if (!next.meal_period && d.meal_period) next.meal_period = d.meal_period;
+            if (!next.source_file && d.source_file) next.source_file = d.source_file;
+            if (!next.store_name && d.store_name) next.store_name = d.store_name;
+            next.price_label = next.price === null || next.price === undefined ? "未标价" : `¥${next.price}`;
+            existing.set(d.key, next);
+            updated += 1;
+          }
+
+          menu.value = Array.from(existing.values());
+          return { inserted, updated, skipped, errorItems, sourceLabel };
+        };
+
+        const loadManifest = async () => {
+          const res = await fetch('./data/manifest.json', { cache: 'no-store' });
+          if (!res.ok) throw new Error('manifest.json 加载失败');
+          const data = await res.json();
+          if (data && Array.isArray(data.sources)) return data.sources.map(x => ({ canteen_id: x.canteen_id || null, file: String(x.file) }));
+          if (data && Array.isArray(data.files)) return data.files.map(f => ({ canteen_id: "二食堂", file: String(f) }));
+          return [];
+        };
+
+        const loadMenuFile = async (path) => {
+          const res = await fetch(path, { cache: 'no-store' });
+          if (!res.ok) throw new Error(`菜单文件加载失败: ${path}`);
+          const json = await res.json();
+          return json;
+        };
+
+        const commitBatch = (batch) => {
+          const db = loadDb();
+          db.dishes = menu.value;
+          db.batches = [...(Array.isArray(db.batches) ? db.batches : []), batch];
+          saveDb(db);
+          importBatches.value = db.batches.slice(-20).reverse();
+        };
+
+        const applyImportResult = (result) => {
+          lastImportSummary.value = result;
+          showLastErrors.value = false;
+          const batchId = createBatchId();
+          commitBatch({
+            batch_id: batchId,
+            imported_at: result.imported_at,
+            source: result.source,
+            source_label: result.source_label,
+            inserted: result.inserted,
+            updated: result.updated,
+            skipped: result.skipped,
+            errors: result.errors,
+            error_items: result.error_items
+          });
+        };
+
+        const importFromBuiltins = async () => {
+          isLoadingMenu.value = true;
+          try {
+            const manifest = await loadManifest();
+            let inserted = 0, updated = 0, skipped = 0;
+            const errorItems = [];
+            const allDishes = [];
+
+            for (const src of manifest) {
+              try {
+                const json = await loadMenuFile(src.file);
+                const parsed = parseAnyMenu(src.canteen_id, json, src.file);
+                if (!parsed.ok) {
+                  errorItems.push(toImportErrorItem(`文件解析失败：${parsed.error}`, src.file, `format=${parsed.format}`));
+                  continue;
+                }
+                allDishes.push(...parsed.dishes);
+              } catch (e) {
+                errorItems.push(toImportErrorItem(`文件读取失败：${e instanceof Error ? e.message : String(e)}`, src.file, null));
+              }
+            }
+
+            const stats = mergeDishes(allDishes, "内置数据源", "builtin");
+            inserted += stats.inserted;
+            updated += stats.updated;
+            skipped += stats.skipped;
+            errorItems.push(...stats.errorItems.slice(0, 50));
+
+            applyImportResult({
+              imported_at: new Date().toISOString(),
+              source: "builtin",
+              source_label: "内置数据源",
+              inserted,
+              updated,
+              skipped,
+              errors: errorItems.length,
+              error_items: errorItems.slice(0, 50)
+            });
+          } catch (e) {
+            console.error(e);
+            showToast('菜单加载失败：请检查 data/manifest.json 与 *.json 文件路径', 'error');
+          } finally {
+            isLoadingMenu.value = false;
+          }
+        };
+
+        const reloadMenu = async () => {
+          menu.value = [];
+          recommendation.value = null;
+          integrityReport.value = null;
+          lastImportSummary.value = null;
+          await importFromBuiltins();
+        };
+
+        const triggerFilePicker = () => {
+          if (!fileInput.value) return;
+          fileInput.value.value = '';
+          fileInput.value.click();
+        };
+
+        const onFilesSelected = async (event) => {
+          const files = Array.from(event.target.files || []);
+          if (!files.length) return;
+          isLoadingData.value = true;
+          try {
+            const parsedDishes = [];
+            let inserted = 0, updated = 0, skipped = 0;
+            const errorItems = [];
+
+            for (const f of files) {
+              const rawText = await f.text();
+              const parsedJson = safeJsonParse(rawText);
+              if (!parsedJson.ok) {
+                errorItems.push(toImportErrorItem(`JSON解析失败：${parsedJson.error}`, f.name, null));
+                skipped += 1;
+                continue;
+              }
+
+              const override = importCanteenOverride.value !== "auto" ? importCanteenOverride.value : null;
+              const canteenId = normalizeCanteenId(override) || inferCanteenId(f.name, parsedJson.data);
+              const parsed = parseAnyMenu(canteenId, parsedJson.data, f.name);
+              if (!parsed.ok) {
+                errorItems.push(toImportErrorItem(`文件格式不支持：${parsed.error}`, f.name, `format=${parsed.format}`));
+                skipped += 1;
+                continue;
+              }
+              parsedDishes.push(...parsed.dishes);
+            }
+
+            const stats = mergeDishes(parsedDishes, "本地上传", files.map(f => f.name).join(", "));
+            inserted += stats.inserted;
+            updated += stats.updated;
+            skipped += stats.skipped;
+            errorItems.push(...stats.errorItems.slice(0, 50));
+
+            const result = {
+              imported_at: new Date().toISOString(),
+              source: files.map(f => f.name).join(", "),
+              source_label: "本地上传",
+              inserted,
+              updated,
+              skipped,
+              errors: errorItems.length,
+              error_items: errorItems.slice(0, 50)
+            };
+            applyImportResult(result);
+            const msg = `导入完成：新增 ${inserted}，更新 ${updated}，跳过 ${skipped}，错误 ${errorItems.length}`;
+            showToast(msg, errorItems.length ? "error" : "success");
+          } catch (e) {
+            console.error(e);
+            showToast('导入失败：请确认选择的是有效JSON菜单文件', 'error');
+          } finally {
+            isLoadingData.value = false;
+          }
+        };
+
+        const toggleLastErrors = () => {
+          showLastErrors.value = !showLastErrors.value;
+        };
+
+        const downloadLastErrorReport = () => {
+          if (!lastImportSummary.value || !Array.isArray(lastImportSummary.value.error_items) || !lastImportSummary.value.error_items.length) return;
+          const payload = {
+            exported_at: new Date().toISOString(),
+            import_summary: { ...lastImportSummary.value, error_items: undefined },
+            errors: lastImportSummary.value.error_items
+          };
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `import-errors-${Date.now()}.json`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        };
+
+        const pickBestMeal = (targetMealCalories, dishes) => {
+          const count = Math.min(3, dishes.length);
+          if (count <= 0) return [];
+          if (dishes.length <= count) return dishes.slice();
+
+          const iterations = Math.min(400, dishes.length * 30);
+          let best = null, bestDiff = Infinity;
+
+          for (let i = 0; i < iterations; i++) {
+            const picked = [];
+            const usedIndexes = new Set();
+            const usedWindows = new Set();
+            let guard = 0;
+            while (picked.length < count && guard < dishes.length * 3) {
+              guard++;
+              const idx = Math.floor(Math.random() * dishes.length);
+              if (usedIndexes.has(idx)) continue;
+              const d = dishes[idx];
+              const w = d.window_name || "";
+              if (usedWindows.size < count && usedWindows.has(w)) continue;
+              usedIndexes.add(idx);
+              usedWindows.add(w);
+              picked.push(d);
+            }
+
+            if (picked.length < count) {
+              for (let j = 0; j < dishes.length && picked.length < count; j++) {
+                if (usedIndexes.has(j)) continue;
+                usedIndexes.add(j);
+                picked.push(dishes[j]);
+              }
+            }
+
+            const total = picked.reduce((s, d) => s + (d.nutrition_info?.calories || 0), 0);
+            const diff = Math.abs(total - targetMealCalories);
+            if (diff < bestDiff) { bestDiff = diff; best = picked; }
+          }
+
+          return best || dishes.slice(0, count);
+        };
+
+        const saveProfile = async () => {
+          if (isSubmitting.value) return;
+          if (!profile.value.age || !profile.value.height || !profile.value.weight) {
+            showToast('请填写完整的健康数据', 'error');
+            return;
+          }
+          const canteenId = normalizeCanteenId(profile.value.canteen_id) || "二食堂";
+          const scopedMenu = menu.value.filter(d => d.canteen_id === canteenId);
+          if (!scopedMenu.length) {
+            showToast('暂无该食堂菜单数据，无法生成推荐', 'error');
+            currentTab.value = 'menu';
+            return;
+          }
+
+          isSubmitting.value = true;
+          try {
+            const bmr = 10 * profile.value.weight + 6.25 * profile.value.height - 5 * profile.value.age + 5;
+            const activityMultipliers = { low: 1.2, medium: 1.55, high: 1.9 };
+            const dailyCalories = bmr * (activityMultipliers[profile.value.activity_level] || 1.2);
+            const targetMealCalories = dailyCalories / 3;
+
+            const selectedDishes = pickBestMeal(targetMealCalories, scopedMenu);
+            const invalid = selectedDishes.find(d => d.canteen_id !== canteenId);
+            if (invalid) throw new Error(`推荐食堂隔离失败：期望=${canteenId} 实际=${invalid.canteen_id}`);
+
+            const totalCal = selectedDishes.reduce((s, d) => s + d.nutrition_info.calories, 0);
+            const totalPro = selectedDishes.reduce((s, d) => s + d.nutrition_info.protein, 0);
+
+            recommendation.value = {
+              canteen_id: canteenId,
+              daily_calories_needed: dailyCalories,
+              recommended_dishes: selectedDishes,
+              total_calories: totalCal,
+              total_protein: totalPro,
+              reasoning: `根据您的身体数据，估算每日总消耗约为 ${dailyCalories.toFixed(0)} kcal；单餐推荐摄入约 ${targetMealCalories.toFixed(0)} kcal。已在“${canteenId}”内为您挑选更贴近目标热量的菜品组合（允许跨窗口），并提供权威来源标注的宏量营养素估算值。`
+            };
+
+            showToast('为您生成了专属营养食谱！');
+            currentTab.value = 'recommend';
+            nextTick(() => { initChart(); });
+          } catch (e) {
+            console.error(e);
+            showToast(e instanceof Error ? e.message : '生成推荐失败', 'error');
+          } finally {
+            isSubmitting.value = false;
+          }
+        };
+
+        let chart = null;
+        const initChart = () => {
+          if (!recommendation.value) return;
+          const chartDom = document.getElementById('nutritionChart');
+          if (!chartDom) return;
+          if (chart) chart.dispose();
+          chart = echarts.init(chartDom);
+
+          let totalFat = 0, totalCarbs = 0;
+          recommendation.value.recommended_dishes.forEach(d => {
+            totalFat += d.nutrition_info.fat;
+            totalCarbs += d.nutrition_info.carbs;
+          });
+
+          chart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}: {c}g ({d}%)' },
+            legend: { bottom: '0', left: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10 },
+            color: ['#3B82F6', '#F59E0B', '#10B981'],
+            series: [{
+              name: '宏量营养素',
+              type: 'pie',
+              radius: ['45%', '75%'],
+              center: ['50%', '45%'],
+              itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 3 },
+              label: { show: false },
+              labelLine: { show: false },
+              data: [
+                { value: recommendation.value.total_protein.toFixed(1), name: '蛋白质' },
+                { value: totalFat.toFixed(1), name: '脂肪' },
+                { value: totalCarbs.toFixed(1), name: '碳水化合物' }
+              ]
+            }]
+          });
+
+          window.addEventListener('resize', () => { chart && chart.resize(); });
+        };
+
+        const runIntegrityCheck = () => {
+          const issues = [];
+          const counts = {};
+          const windowsByCanteen = {};
+          for (const d of menu.value) {
+            const canteenId = d.canteen_id || "未标识食堂";
+            counts[canteenId] = (counts[canteenId] || 0) + 1;
+            windowsByCanteen[canteenId] = windowsByCanteen[canteenId] || new Set();
+            windowsByCanteen[canteenId].add(d.window_name || "未命名窗口");
+
+            const errs = validateDish(d);
+            if (errs.length) issues.push(`${d.key || "(无key)"}：${errs.join("、")}`);
+            if (d.canteen_id && typeof d.canteen_id !== "string") issues.push(`${d.key || "(无key)"}：食堂标识类型错误`);
+            if (d.price !== null && d.price !== undefined && !Number.isFinite(Number(d.price))) issues.push(`${d.key || "(无key)"}：价格格式错误`);
+          }
+
+          if (!counts["一食堂"]) issues.push("一食堂数据为空：请检查 manifest.json 是否包含 ./一食堂.json 或上传一食堂菜单文件");
+          if (!counts["三食堂"]) issues.push("三食堂数据为空：请检查 manifest.json 是否包含 ./三食堂.json 或上传三食堂菜单文件");
+
+          integrityReport.value = {
+            generated_at: new Date().toISOString(),
+            total_dishes: menu.value.length,
+            canteen_counts: counts,
+            window_counts: Object.fromEntries(Object.entries(windowsByCanteen).map(([k, set]) => [k, set.size])),
+            issues
+          };
+
+          showToast(issues.length ? `校验完成：发现 ${issues.length} 个问题` : "校验完成：未发现问题", issues.length ? "error" : "success");
+        };
+
+        onMounted(() => {
+          if (location.protocol === "file:") showToast("检测到 file:// 打开方式，菜单JSON会被浏览器安全策略阻止。请使用 GitHub Pages 或本地服务器访问。", "error");
+          const db = loadDb();
+          if (Array.isArray(db.dishes) && db.dishes.length) {
+            menu.value = db.dishes.map(d => buildDish(d)).filter(d => validateDish(d).length === 0);
+            importBatches.value = Array.isArray(db.batches) ? db.batches.slice(-20).reverse() : [];
+            isLoadingMenu.value = false;
+            return;
+          }
+          importFromBuiltins();
+        });
+
+        return {
+          currentTab,
+          menu,
+          profile,
+          recommendation,
+          isSubmitting,
+          isLoadingMenu,
+          isLoadingData,
+          toast,
+          fileInput,
+          selectedMenuCanteen,
+          menuViewMode,
+          importCanteenOverride,
+          displayedMenu,
+          menuTree,
+          canteenOptions,
+          canteenOptionsForImport,
+          importBatches,
+          lastImportSummary,
+          showLastErrors,
+          integrityReport,
+          saveProfile,
+          reloadMenu,
+          triggerFilePicker,
+          onFilesSelected,
+          toggleLastErrors,
+          downloadLastErrorReport,
+          runIntegrityCheck
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+
+</html>
