@@ -1221,6 +1221,7 @@
             menu.value = db.dishes.map(d => buildDish(d)).filter(d => validateDish(d).length === 0);
             importBatches.value = Array.isArray(db.batches) ? db.batches.slice(-20).reverse() : [];
             isLoadingMenu.value = false;
+            importFromBuiltins();
             return;
           }
           importFromBuiltins();
