@@ -8,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
   <style>
     [v-cloak] {
       display: none;
@@ -51,13 +52,18 @@
           </svg>
           营养分析师
         </h1>
-        <nav class="flex gap-2">
-          <button @click="currentTab='profile'"
-            :class="[currentTab==='profile' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">健康档案</button>
-          <button @click="currentTab='menu'"
-            :class="[currentTab==='menu' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">菜单系统</button>
-          <button @click="currentTab='recommend'"
-            :class="[currentTab==='recommend' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">智能推荐</button>
+        <nav class="flex gap-2 items-center">
+          <template v-if="isLoggedIn">
+            <button @click="currentTab='profile'"
+              :class="[currentTab==='profile' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">健康档案</button>
+            <button @click="currentTab='menu'"
+              :class="[currentTab==='menu' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">菜单系统</button>
+            <button @click="currentTab='recommend'"
+              :class="[currentTab==='recommend' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">智能推荐</button>
+            <span class="ml-4 text-sm bg-green-700 px-3 py-1 rounded-md">{{ currentUsername }}</span>
+            <button @click="logout"
+              class="ml-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md transition">退出登录</button>
+          </template>
         </nav>
       </div>
     </header>
@@ -65,21 +71,100 @@
     <Transition name="slide-fade">
       <div v-if="toast.show"
         class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-medium flex items-center gap-2"
-        :class="toast.type==='error' ? 'bg-red-500' : 'bg-green-500'">
+        :class="toast.type==='error' ? 'bg-red-500' : (toast.type==='info' ? 'bg-blue-500' : 'bg-green-500')">
         <span>{{ toast.message }}</span>
       </div>
     </Transition>
 
     <main class="container mx-auto px-4 py-8 flex-1">
       <Transition name="fade" mode="out-in">
-        <section v-if="currentTab==='profile'" class="max-w-2xl mx-auto mt-8">
+        <div v-if="!isLoggedIn">
+          <div v-if="authView==='login'" class="max-w-md mx-auto mt-12">
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+              <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">登录</h2>
+              <form @submit.prevent="handleLogin" class="space-y-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">用户名</label>
+                  <input v-model="loginForm.username" type="text" autocomplete="username" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                  <div v-if="loginErrors.username" class="text-sm text-red-600 mt-1">{{ loginErrors.username }}</div>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">密码</label>
+                  <input v-model="loginForm.password" type="password" autocomplete="current-password" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                  <div v-if="loginErrors.password" class="text-sm text-red-600 mt-1">{{ loginErrors.password }}</div>
+                </div>
+                <div class="flex items-center">
+                  <input v-model="loginForm.remember" type="checkbox" id="remember"
+                    class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                  <label for="remember" class="ml-2 text-sm text-gray-600">记住登录状态</label>
+                </div>
+                <button type="submit" :disabled="isSubmitting"
+                  class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition shadow-md font-bold text-lg disabled:opacity-70 disabled:cursor-not-allowed">
+                  {{ isSubmitting ? '登录中...' : '登录' }}
+                </button>
+              </form>
+              <div class="mt-6 text-center text-sm text-gray-500">
+                还没有账号？<button @click="authView='register'"
+                  class="text-green-600 font-medium hover:underline">立即注册</button>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="authView==='register'" class="max-w-md mx-auto mt-12">
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+              <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">注册</h2>
+              <form @submit.prevent="handleRegister" class="space-y-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">用户名</label>
+                  <input v-model="registerForm.username" type="text" autocomplete="username" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                  <div class="text-xs text-gray-400 mt-1">4-16位，仅支持字母、数字、下划线</div>
+                  <div v-if="registerErrors.username" class="text-sm text-red-600 mt-1">{{ registerErrors.username }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">密码</label>
+                  <input v-model="registerForm.password" type="password" autocomplete="new-password" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                  <div class="text-xs text-gray-400 mt-1">8-20位，需包含字母和数字</div>
+                  <div v-if="registerErrors.password" class="text-sm text-red-600 mt-1">{{ registerErrors.password }}
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">确认密码</label>
+                  <input v-model="registerForm.confirmPassword" type="password" autocomplete="new-password" required
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
+                  <div v-if="registerErrors.confirmPassword" class="text-sm text-red-600 mt-1">{{
+                    registerErrors.confirmPassword }}</div>
+                </div>
+                <button type="submit" :disabled="isSubmitting"
+                  class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition shadow-md font-bold text-lg disabled:opacity-70 disabled:cursor-not-allowed">
+                  {{ isSubmitting ? '注册中...' : '注册' }}
+                </button>
+              </form>
+              <div class="mt-6 text-center text-sm text-gray-500">
+                已有账号？<button @click="authView='login'" class="text-green-600 font-medium hover:underline">立即登录</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <Transition name="fade" mode="out-in">
+        <section v-if="isLoggedIn && currentTab==='profile'" class="max-w-2xl mx-auto mt-8">
           <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">定制您的健康档案</h2>
-            <form @submit.prevent="saveProfile" class="space-y-6">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+              <h2 class="text-2xl font-bold text-gray-800">定制您的健康档案</h2>
+              <span v-if="profileSaving" class="text-sm text-blue-600">保存中...</span>
+              <span v-else-if="profileSaved" class="text-sm text-green-600">已保存</span>
+            </div>
+            <div class="space-y-6">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="md:col-span-2">
                   <label class="block text-sm font-semibold text-gray-700 mb-1">选择食堂（推荐结果仅在该食堂内）</label>
-                  <select v-model="profile.canteen_id"
+                  <select v-model="profile.canteen_id" @change="onProfileChange"
                     class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-white">
                     <option v-for="c in canteenOptions" :key="c" :value="c">{{ c }}</option>
                     <option v-if="!canteenOptions.length" value="二食堂">二食堂</option>
@@ -87,40 +172,61 @@
                 </div>
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-1">年龄 (岁)</label>
-                  <input v-model.number="profile.age" type="number" min="1" max="120" required
+                  <input v-model.number="profile.age" type="number" min="1" max="120" @input="onProfileChange"
                     class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
                 </div>
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-1">身高 (cm)</label>
-                  <input v-model.number="profile.height" type="number" min="50" max="300" required
+                  <input v-model.number="profile.height" type="number" min="50" max="300" @input="onProfileChange"
                     class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
                 </div>
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-1">体重 (kg)</label>
-                  <input v-model.number="profile.weight" type="number" min="10" max="300" required
+                  <input v-model.number="profile.weight" type="number" min="10" max="300" @input="onProfileChange"
                     class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border">
                 </div>
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-1">活动水平</label>
-                  <select v-model="profile.activity_level"
+                  <select v-model="profile.activity_level" @change="onProfileChange"
                     class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-white">
                     <option value="low">轻度活动 (久坐)</option>
                     <option value="medium">中度活动 (每周锻炼3-5天)</option>
                     <option value="high">重度活动 (高强度)</option>
                   </select>
                 </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">血型（可选）</label>
+                  <select v-model="profile.blood_type" @change="onProfileChange"
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border bg-white">
+                    <option value="">未填写</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="AB">AB</option>
+                    <option value="O">O</option>
+                  </select>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">过敏史（可选）</label>
+                  <textarea v-model="profile.allergies" @input="onProfileChange" rows="2"
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">病史记录（可选）</label>
+                  <textarea v-model="profile.medical_history" @input="onProfileChange" rows="2"
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3 border"></textarea>
+                </div>
               </div>
-              <button type="submit" :disabled="isSubmitting"
+              <button @click="saveProfileAndRecommend" :disabled="isSubmitting"
                 class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition shadow-md font-bold text-lg disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2">
                 <span>{{ isSubmitting ? '正在生成推荐...' : '保存并获取智能推荐' }}</span>
               </button>
-            </form>
+            </div>
           </div>
         </section>
       </Transition>
 
       <Transition name="fade" mode="out-in">
-        <section v-if="currentTab==='menu'" class="space-y-6">
+        <section v-if="isLoggedIn && currentTab==='menu'" class="space-y-6">
           <div class="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-3 border-b pb-4">
             <div>
               <h2 class="text-2xl font-bold text-gray-800">餐厅菜单管理与营养数据库</h2>
@@ -339,7 +445,7 @@
       </Transition>
 
       <Transition name="fade" mode="out-in">
-        <section v-if="currentTab==='recommend'" class="space-y-6">
+        <section v-if="isLoggedIn && currentTab==='recommend'" class="space-y-6">
           <div v-if="!recommendation"
             class="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-xl font-bold text-gray-800 mb-2">数据不足</h2>
@@ -402,7 +508,7 @@
   </div>
 
   <script>
-    const { createApp, ref, onMounted, nextTick, computed } = Vue;
+    const { createApp, ref, onMounted, nextTick, computed, watch } = Vue;
 
     const SOURCES = [
       "《中国食物成分表 第6版》",
@@ -444,7 +550,64 @@
       dishes: "nutrition_dishes_v2",
       imports: "nutrition_import_batches_v2",
       legacyDishes: "nutrition_dishes_v1",
-      legacyImports: "nutrition_import_batches_v1"
+      legacyImports: "nutrition_import_batches_v1",
+      users: "nutrition_users_v1",
+      session: "nutrition_session_v1",
+      profiles: "nutrition_profiles_v1"
+    };
+
+    const sha256 = (text) => {
+      return CryptoJS.SHA256(String(text)).toString();
+    };
+
+    const loadUsers = () => {
+      const raw = localStorage.getItem(STORAGE.users);
+      try {
+        const obj = JSON.parse(raw || "{}");
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    };
+
+    const saveUsers = (users) => {
+      localStorage.setItem(STORAGE.users, JSON.stringify(users || {}));
+    };
+
+    const loadSession = () => {
+      const raw = localStorage.getItem(STORAGE.session);
+      if (!raw) return null;
+      try {
+        const obj = JSON.parse(raw);
+        if (!obj || !obj.username) return null;
+        const users = loadUsers();
+        if (!users[obj.username]) return null;
+        return obj;
+      } catch {
+        return null;
+      }
+    };
+
+    const saveSession = (session) => {
+      if (!session) {
+        localStorage.removeItem(STORAGE.session);
+        return;
+      }
+      localStorage.setItem(STORAGE.session, JSON.stringify(session));
+    };
+
+    const loadProfiles = () => {
+      const raw = localStorage.getItem(STORAGE.profiles);
+      try {
+        const obj = JSON.parse(raw || "{}");
+        return obj && typeof obj === "object" ? obj : {};
+      } catch {
+        return {};
+      }
+    };
+
+    const saveProfiles = (profiles) => {
+      localStorage.setItem(STORAGE.profiles, JSON.stringify(profiles || {}));
     };
 
     const createBatchId = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -736,11 +899,26 @@
     createApp({
       setup() {
         const currentTab = ref('profile');
+        const authView = ref('login');
         const menu = ref([]);
-        const profile = ref({ canteen_id: "二食堂", age: 25, height: 175, weight: 70, activity_level: 'medium' });
+        const profile = ref({ canteen_id: "二食堂", age: 25, height: 175, weight: 70, activity_level: 'medium', blood_type: '', allergies: '', medical_history: '' });
+        const profileSaving = ref(false);
+        const profileSaved = ref(false);
+        let profileSaveTimer = null;
+
+        const registerForm = ref({ username: '', password: '', confirmPassword: '' });
+        const registerErrors = ref({});
+        const loginForm = ref({ username: '', password: '', remember: false });
+        const loginErrors = ref({});
+        const isSubmitting = ref(false);
+
+        const users = ref({});
+        const session = ref(null);
+
+        const isLoggedIn = computed(() => !!session.value && !!session.value.username);
+        const currentUsername = computed(() => session.value?.username || '');
 
         const recommendation = ref(null);
-        const isSubmitting = ref(false);
         const isLoadingMenu = ref(true);
         const isLoadingData = ref(false);
         const fileInput = ref(null);
@@ -1099,7 +1277,151 @@
           return best || dishes.slice(0, count);
         };
 
-        const saveProfile = async () => {
+        const validateUsername = (username) => {
+          const errors = [];
+          const s = String(username || "");
+          if (s.length < 4 || s.length > 16) errors.push("用户名长度需为4-16位");
+          if (!/^[a-zA-Z0-9_]+$/.test(s)) errors.push("用户名仅支持字母、数字、下划线");
+          return errors;
+        };
+
+        const validatePassword = (password) => {
+          const errors = [];
+          const s = String(password || "");
+          if (s.length < 8 || s.length > 20) errors.push("密码长度需为8-20位");
+          if (!/[a-zA-Z]/.test(s)) errors.push("密码需包含字母");
+          if (!/[0-9]/.test(s)) errors.push("密码需包含数字");
+          return errors;
+        };
+
+        const handleRegister = async () => {
+          registerErrors.value = {};
+          const usernameErrors = validateUsername(registerForm.value.username);
+          const passwordErrors = validatePassword(registerForm.value.password);
+          const confirmErrors = [];
+          if (registerForm.value.password !== registerForm.value.confirmPassword) confirmErrors.push("两次密码输入不一致");
+
+          if (usernameErrors.length) registerErrors.value.username = usernameErrors[0];
+          if (passwordErrors.length) registerErrors.value.password = passwordErrors[0];
+          if (confirmErrors.length) registerErrors.value.confirmPassword = confirmErrors[0];
+          if (Object.keys(registerErrors.value).length) return;
+
+          isSubmitting.value = true;
+          try {
+            await nextTick();
+            const currentUsers = loadUsers();
+            const username = normalizeText(registerForm.value.username);
+            if (currentUsers[username]) {
+              registerErrors.value.username = "该用户名已被注册";
+              return;
+            }
+            const passwordHash = sha256(registerForm.value.password);
+            currentUsers[username] = {
+              username,
+              password_hash: passwordHash,
+              created_at: new Date().toISOString()
+            };
+            saveUsers(currentUsers);
+            users.value = currentUsers;
+            showToast("注册成功，请登录", "success");
+            authView.value = 'login';
+            loginForm.value.username = username;
+            loginForm.value.password = '';
+            registerForm.value = { username: '', password: '', confirmPassword: '' };
+          } finally {
+            isSubmitting.value = false;
+          }
+        };
+
+        const handleLogin = async () => {
+          loginErrors.value = {};
+          const username = normalizeText(loginForm.value.username);
+          const password = loginForm.value.password;
+          if (!username) loginErrors.value.username = "请输入用户名";
+          if (!password) loginErrors.value.password = "请输入密码";
+          if (Object.keys(loginErrors.value).length) return;
+
+          isSubmitting.value = true;
+          try {
+            await nextTick();
+            const currentUsers = loadUsers();
+            const user = currentUsers[username];
+            if (!user) {
+              loginErrors.value.username = "账号不存在";
+              return;
+            }
+            const passwordHash = sha256(password);
+            if (user.password_hash !== passwordHash) {
+              loginErrors.value.password = "密码错误";
+              return;
+            }
+
+            const sess = {
+              username,
+              login_at: new Date().toISOString(),
+              remember: !!loginForm.value.remember
+            };
+            saveSession(sess);
+            session.value = sess;
+            loadProfileForUser(username);
+            showToast(`欢迎回来，${username}！`, "success");
+            loginForm.value.password = '';
+          } finally {
+            isSubmitting.value = false;
+          }
+        };
+
+        const logout = () => {
+          saveSession(null);
+          session.value = null;
+          recommendation.value = null;
+          profile.value = { canteen_id: "二食堂", age: 25, height: 175, weight: 70, activity_level: 'medium', blood_type: '', allergies: '', medical_history: '' };
+          authView.value = 'login';
+          currentTab.value = 'profile';
+          showToast("已退出登录", "info");
+        };
+
+        const loadProfileForUser = (username) => {
+          const profiles = loadProfiles();
+          const stored = profiles[username];
+          if (stored && typeof stored === "object") {
+            profile.value = {
+              canteen_id: normalizeCanteenId(stored.canteen_id) || "二食堂",
+              age: Number.isFinite(Number(stored.age)) ? Number(stored.age) : 25,
+              height: Number.isFinite(Number(stored.height)) ? Number(stored.height) : 175,
+              weight: Number.isFinite(Number(stored.weight)) ? Number(stored.weight) : 70,
+              activity_level: stored.activity_level || 'medium',
+              blood_type: stored.blood_type || '',
+              allergies: stored.allergies || '',
+              medical_history: stored.medical_history || ''
+            };
+          } else {
+            profile.value = { canteen_id: "二食堂", age: 25, height: 175, weight: 70, activity_level: 'medium', blood_type: '', allergies: '', medical_history: '' };
+          }
+        };
+
+        const onProfileChange = () => {
+          if (!isLoggedIn.value) return;
+          profileSaved.value = false;
+          profileSaving.value = true;
+          if (profileSaveTimer) clearTimeout(profileSaveTimer);
+          profileSaveTimer = setTimeout(() => {
+            saveCurrentProfile();
+          }, 1000);
+        };
+
+        const saveCurrentProfile = () => {
+          if (!isLoggedIn.value) return;
+          const username = session.value.username;
+          const profiles = loadProfiles();
+          profiles[username] = { ...profile.value, updated_at: new Date().toISOString() };
+          saveProfiles(profiles);
+          profileSaving.value = false;
+          profileSaved.value = true;
+          setTimeout(() => { profileSaved.value = false; }, 1500);
+        };
+
+        const saveProfileAndRecommend = async () => {
           if (isSubmitting.value) return;
           if (!profile.value.age || !profile.value.height || !profile.value.weight) {
             showToast('请填写完整的健康数据', 'error');
@@ -1115,6 +1437,7 @@
 
           isSubmitting.value = true;
           try {
+            saveCurrentProfile();
             const bmr = 10 * profile.value.weight + 6.25 * profile.value.height - 5 * profile.value.age + 5;
             const activityMultipliers = { low: 1.2, medium: 1.55, high: 1.9 };
             const dailyCalories = bmr * (activityMultipliers[profile.value.activity_level] || 1.2);
@@ -1216,6 +1539,14 @@
 
         onMounted(() => {
           if (location.protocol === "file:") showToast("检测到 file:// 打开方式，菜单JSON会被浏览器安全策略阻止。请使用 GitHub Pages 或本地服务器访问。", "error");
+
+          users.value = loadUsers();
+          const sess = loadSession();
+          if (sess) {
+            session.value = sess;
+            loadProfileForUser(sess.username);
+          }
+
           const db = loadDb();
           if (Array.isArray(db.dishes) && db.dishes.length) {
             menu.value = db.dishes.map(d => buildDish(d)).filter(d => validateDish(d).length === 0);
@@ -1229,10 +1560,21 @@
 
         return {
           currentTab,
+          authView,
           menu,
           profile,
-          recommendation,
+          profileSaving,
+          profileSaved,
+          registerForm,
+          registerErrors,
+          loginForm,
+          loginErrors,
           isSubmitting,
+          isLoggedIn,
+          currentUsername,
+          users,
+          session,
+          recommendation,
           isLoadingMenu,
           isLoadingData,
           toast,
@@ -1249,7 +1591,11 @@
           lastImportSummary,
           showLastErrors,
           integrityReport,
-          saveProfile,
+          handleRegister,
+          handleLogin,
+          logout,
+          onProfileChange,
+          saveProfileAndRecommend,
           reloadMenu,
           triggerFilePicker,
           onFilesSelected,
