@@ -43,7 +43,7 @@
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
   <div id="app" v-cloak class="flex-1 flex flex-col">
     <header class="bg-green-600 text-white shadow-lg sticky top-0 z-50">
-      <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="container mx-auto px-4 py-4 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
         <h1 class="text-2xl font-bold flex items-center tracking-wide">
           <svg class="w-7 h-7 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -52,17 +52,19 @@
           </svg>
           营养分析师
         </h1>
-        <nav class="flex gap-2 items-center">
+        <nav class="flex flex-wrap gap-2 items-center">
           <template v-if="isLoggedIn">
             <button @click="currentTab='profile'"
-              :class="[currentTab==='profile' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">健康档案</button>
+              :class="[currentTab==='profile' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition text-sm sm:text-base']">健康档案</button>
             <button @click="currentTab='menu'"
-              :class="[currentTab==='menu' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">菜单系统</button>
+              :class="[currentTab==='menu' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition text-sm sm:text-base']">菜单系统</button>
+            <button @click="currentTab='favorites'"
+              :class="[currentTab==='favorites' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition text-sm sm:text-base']">我的收藏</button>
             <button @click="currentTab='recommend'"
-              :class="[currentTab==='recommend' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition']">智能推荐</button>
-            <span class="ml-4 text-sm bg-green-700 px-3 py-1 rounded-md">{{ currentUsername }}</span>
+              :class="[currentTab==='recommend' ? 'bg-green-700 font-bold' : 'hover:bg-green-500','px-4 py-2 rounded-md transition text-sm sm:text-base']">智能推荐</button>
+            <span class="ml-0 sm:ml-4 text-sm bg-green-700 px-3 py-1 rounded-md">{{ currentUsername }}</span>
             <button @click="logout"
-              class="ml-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md transition">退出登录</button>
+              class="ml-0 sm:ml-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md transition text-sm sm:text-base">退出登录</button>
           </template>
         </nav>
       </div>
@@ -76,7 +78,7 @@
       </div>
     </Transition>
 
-    <main class="container mx-auto px-4 py-8 flex-1">
+    <main class="container mx-auto px-4 py-6 sm:py-8 flex-1">
       <Transition name="fade" mode="out-in">
         <div v-if="!isLoggedIn">
           <div v-if="authView==='login'" class="max-w-md mx-auto mt-12">
@@ -145,7 +147,8 @@
                 </button>
               </form>
               <div class="mt-6 text-center text-sm text-gray-500">
-                已有账号？<button @click="authView='login'" class="text-green-600 font-medium hover:underline">立即登录</button>
+                已有账号？<button @click="authView='login'"
+                  class="text-green-600 font-medium hover:underline">立即登录</button>
               </div>
             </div>
           </div>
@@ -153,8 +156,8 @@
       </Transition>
 
       <Transition name="fade" mode="out-in">
-        <section v-if="isLoggedIn && currentTab==='profile'" class="max-w-2xl mx-auto mt-8">
-          <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+        <section v-if="isLoggedIn && currentTab==='profile'" class="max-w-2xl mx-auto mt-4 sm:mt-8">
+          <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100">
             <div class="flex justify-between items-center border-b pb-4 mb-6">
               <h2 class="text-2xl font-bold text-gray-800">定制您的健康档案</h2>
               <span v-if="profileSaving" class="text-sm text-blue-600">保存中...</span>
@@ -238,8 +241,19 @@
                 <option value="全部">全部食堂</option>
                 <option v-for="c in canteenOptions" :key="c" :value="c">{{ c }}</option>
               </select>
-              <input v-model.trim="menuSearchQuery" type="text" placeholder="搜索菜品/窗口/分类"
-                class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 min-w-[180px]">
+              <div class="relative flex-1 min-w-[180px]">
+                <input v-model.trim="menuSearchQuery" type="text" placeholder="搜索菜品/窗口/分类"
+                  class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 w-full">
+                <div v-if="menuSearchQuery.length > 0 && searchSuggestions.length"
+                  class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-40 max-h-48 overflow-auto">
+                  <div v-for="s in searchSuggestions.slice(0,8)" :key="s.name"
+                    @click="menuSearchQuery = s.name"
+                    class="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer flex justify-between gap-3">
+                    <span>{{ s.name }}</span>
+                    <span class="text-xs text-gray-400">{{ s.window }}</span>
+                  </div>
+                </div>
+              </div>
               <select v-model="menuViewMode"
                 class="text-sm rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm focus:border-green-500 focus:ring-green-500">
                 <option value="cards">卡片视图</option>
@@ -378,36 +392,58 @@
             暂无菜品数据。请检查 data/manifest.json 或使用“导入本地JSON”。
           </div>
 
-          <div v-else-if="menuSearchQuery" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div v-for="dish in displayedMenu" :key="dish.key"
-              class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition duration-300">
-              <div
-                class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 flex justify-between items-start">
-                <div class="pr-3">
-                  <h3 class="font-bold text-lg text-gray-800 leading-tight">{{ dish.name }}</h3>
-                  <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
+          <div v-else-if="menuSearchQuery" class="space-y-4">
+            <div v-if="!displayedMenu.length"
+              class="text-center py-12 bg-white border border-gray-200 rounded-xl shadow-sm">
+              <h3 class="text-lg font-bold text-gray-700">未找到匹配的菜品</h3>
+              <p class="text-gray-500 mt-2 text-sm">请尝试其他关键词或清空搜索</p>
+              <button @click="menuSearchQuery=''"
+                class="mt-4 text-sm bg-green-50 text-green-700 hover:bg-green-100 px-4 py-2 rounded-md font-medium transition">
+                清空搜索
+              </button>
+            </div>
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div v-for="dish in displayedMenu" :key="dish.key"
+                class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition duration-300">
+                <div
+                  class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 flex justify-between items-start">
+                  <div class="pr-3">
+                    <h3 class="font-bold text-lg text-gray-800 leading-tight">{{ dish.name }}</h3>
+                    <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <button @click="toggleFavorite(dish)"
+                      :class="isFavorited(dish.key) ? 'text-red-500' : 'text-gray-400'"
+                      class="hover:opacity-70 transition">
+                      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c3.08 0 5.5 2.42 5.5 5.5 0 3.78-3.4 6.86-8.55 11.54L12 21.35z">
+                        </path>
+                      </svg>
+                    </button>
+                    <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{{ dish.price_label
+                      }}</span>
+                  </div>
                 </div>
-                <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{{ dish.price_label
-                  }}</span>
-              </div>
-              <div class="p-5">
-                <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
-                  <div class="flex flex-col"><span class="text-gray-400 text-xs">热量</span><span
-                      class="font-bold text-gray-700">{{ dish.nutrition_info.calories }} <span
-                        class="font-normal text-xs text-gray-500">kcal</span></span></div>
-                  <div class="flex flex-col"><span class="text-gray-400 text-xs">蛋白质</span><span
-                      class="font-bold text-blue-600">{{ dish.nutrition_info.protein }} <span
-                        class="font-normal text-xs text-blue-400">g</span></span></div>
-                  <div class="flex flex-col"><span class="text-gray-400 text-xs">脂肪</span><span
-                      class="font-bold text-yellow-600">{{ dish.nutrition_info.fat }} <span
-                        class="font-normal text-xs text-yellow-400">g</span></span></div>
-                  <div class="flex flex-col"><span class="text-gray-400 text-xs">碳水</span><span
-                      class="font-bold text-green-600">{{ dish.nutrition_info.carbs }} <span
-                        class="font-normal text-xs text-green-400">g</span></span></div>
+                <div class="p-5">
+                  <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                    <div class="flex flex-col"><span class="text-gray-400 text-xs">热量</span><span
+                        class="font-bold text-gray-700">{{ dish.nutrition_info.calories }} <span
+                          class="font-normal text-xs text-gray-500">kcal</span></span></div>
+                    <div class="flex flex-col"><span class="text-gray-400 text-xs">蛋白质</span><span
+                        class="font-bold text-blue-600">{{ dish.nutrition_info.protein }} <span
+                          class="font-normal text-xs text-blue-400">g</span></span></div>
+                    <div class="flex flex-col"><span class="text-gray-400 text-xs">脂肪</span><span
+                        class="font-bold text-yellow-600">{{ dish.nutrition_info.fat }} <span
+                          class="font-normal text-xs text-yellow-400">g</span></span></div>
+                    <div class="flex flex-col"><span class="text-gray-400 text-xs">碳水</span><span
+                        class="font-bold text-green-600">{{ dish.nutrition_info.carbs }} <span
+                          class="font-normal text-xs text-green-400">g</span></span></div>
+                  </div>
+                  <div class="mt-4 pt-3 border-t border-gray-50 text-xs text-gray-400">来源: {{ dish.nutrition_info.source
+                    }}</div>
+                  <div class="mt-2 text-xs text-gray-400">供应时段: {{ dish.meal_period || '全天' }}</div>
                 </div>
-                <div class="mt-4 pt-3 border-t border-gray-50 text-xs text-gray-400">来源: {{ dish.nutrition_info.source
-                  }}</div>
-                <div class="mt-2 text-xs text-gray-400">供应时段: {{ dish.meal_period || '全天' }}</div>
               </div>
             </div>
           </div>
@@ -431,7 +467,18 @@
                       class="bg-white border border-gray-100 rounded-md px-3 py-2">
                       <div class="flex justify-between gap-3">
                         <div class="text-sm font-bold text-gray-800 truncate" :title="d.name">{{ d.name }}</div>
-                        <div class="text-xs text-gray-500">{{ d.price_label }}</div>
+                        <div class="flex items-center gap-2">
+                          <button @click="toggleFavorite(d)"
+                            :class="isFavorited(d.key) ? 'text-red-500' : 'text-gray-400'"
+                            class="hover:opacity-70 transition">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path
+                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c3.08 0 5.5 2.42 5.5 5.5 0 3.78-3.4 6.86-8.55 11.54L12 21.35z">
+                              </path>
+                            </svg>
+                          </button>
+                          <span class="text-xs text-gray-500">{{ d.price_label }}</span>
+                        </div>
                       </div>
                       <div class="mt-1 text-xs text-gray-500 truncate" :title="d.store_name">{{ d.store_name }}</div>
                       <div class="mt-1 text-xs text-gray-400">供应时段: {{ d.meal_period || '全天' }}</div>
@@ -453,11 +500,10 @@
               </button>
               <div class="flex-1">
                 <h2 class="text-xl font-bold text-gray-800">{{ selectedWindowMeta?.window_name }}</h2>
-                <p class="text-sm text-gray-500 mt-1">{{ selectedWindowMeta?.canteen_id }} · {{
-                  selectedWindowMeta?.dish_count }} 道菜品</p>
+                <p class="text-sm text-gray-500 mt-1">{{ selectedWindowMeta?.canteen_id }} · {{ selectedWindowMeta?.dish_count }} 道菜品</p>
               </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               <div v-for="dish in selectedWindowDishes" :key="dish.key"
                 class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition duration-300">
                 <div
@@ -466,8 +512,19 @@
                     <h3 class="font-bold text-lg text-gray-800 leading-tight">{{ dish.name }}</h3>
                     <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
                   </div>
-                  <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{{ dish.price_label
-                    }}</span>
+                  <div class="flex items-start gap-2">
+                    <button @click="toggleFavorite(dish)"
+                      :class="isFavorited(dish.key) ? 'text-red-500' : 'text-gray-400'"
+                      class="hover:opacity-70 transition">
+                      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c3.08 0 5.5 2.42 5.5 5.5 0 3.78-3.4 6.86-8.55 11.54L12 21.35z">
+                        </path>
+                      </svg>
+                    </button>
+                    <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{{ dish.price_label
+                      }}</span>
+                  </div>
                 </div>
                 <div class="p-5">
                   <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
@@ -516,6 +573,71 @@
       </Transition>
 
       <Transition name="fade" mode="out-in">
+        <section v-if="isLoggedIn && currentTab==='favorites'" class="space-y-6">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">我的收藏</h2>
+              <p class="text-gray-500 text-sm mt-1">您收藏的所有菜品</p>
+            </div>
+            <span class="text-sm text-gray-500">共 {{ favoriteKeys.length }} 道</span>
+          </div>
+          <div v-if="!favoriteKeys.length"
+            class="text-center py-12 bg-white border border-gray-200 rounded-xl shadow-sm">
+            <h3 class="text-lg font-bold text-gray-700">暂无收藏</h3>
+            <p class="text-gray-500 mt-2 text-sm">去菜单系统浏览并收藏您喜欢的菜品吧</p>
+            <button @click="currentTab='menu'"
+              class="mt-4 text-sm bg-green-50 text-green-700 hover:bg-green-100 px-4 py-2 rounded-md font-medium transition">
+              去菜单系统
+            </button>
+          </div>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div v-for="dish in favoriteDishes" :key="dish.key"
+              class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition duration-300">
+              <div
+                class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 flex justify-between items-start">
+                <div class="pr-3">
+                  <h3 class="font-bold text-lg text-gray-800 leading-tight">{{ dish.name }}</h3>
+                  <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
+                </div>
+                <div class="flex items-start gap-2">
+                  <button @click="toggleFavorite(dish)"
+                    :class="isFavorited(dish.key) ? 'text-red-500' : 'text-gray-400'"
+                    class="hover:opacity-70 transition">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path
+                        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c3.08 0 5.5 2.42 5.5 5.5 0 3.78-3.4 6.86-8.55 11.54L12 21.35z">
+                      </path>
+                    </svg>
+                  </button>
+                  <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">{{ dish.price_label
+                    }}</span>
+                </div>
+              </div>
+              <div class="p-5">
+                <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">热量</span><span
+                      class="font-bold text-gray-700">{{ dish.nutrition_info.calories }} <span
+                        class="font-normal text-xs text-gray-500">kcal</span></span></div>
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">蛋白质</span><span
+                      class="font-bold text-blue-600">{{ dish.nutrition_info.protein }} <span
+                        class="font-normal text-xs text-blue-400">g</span></span></div>
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">脂肪</span><span
+                      class="font-bold text-yellow-600">{{ dish.nutrition_info.fat }} <span
+                        class="font-normal text-xs text-yellow-400">g</span></span></div>
+                  <div class="flex flex-col"><span class="text-gray-400 text-xs">碳水</span><span
+                      class="font-bold text-green-600">{{ dish.nutrition_info.carbs }} <span
+                        class="font-normal text-xs text-green-400">g</span></span></div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-50 text-xs text-gray-400">来源: {{ dish.nutrition_info.source
+                  }}</div>
+                <div class="mt-2 text-xs text-gray-400">供应时段: {{ dish.meal_period || '全天' }}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Transition>
+
+      <Transition name="fade" mode="out-in">
         <section v-if="isLoggedIn && currentTab==='recommend'" class="space-y-6">
           <div v-if="!recommendation"
             class="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -542,8 +664,19 @@
                       <h4 class="font-bold text-lg text-gray-800">{{ dish.name }}</h4>
                       <p class="text-xs text-gray-500 mt-1">{{ dish.store_name }}</p>
                     </div>
-                    <span class="text-sm bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold">{{ dish.price_label
-                      }}</span>
+                    <div class="flex items-start gap-2">
+                      <button @click="toggleFavorite(dish)"
+                        :class="isFavorited(dish.key) ? 'text-red-500' : 'text-gray-400'"
+                        class="hover:opacity-70 transition">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path
+                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c3.08 0 5.5 2.42 5.5 5.5 0 3.78-3.4 6.86-8.55 11.54L12 21.35z">
+                          </path>
+                        </svg>
+                      </button>
+                      <span class="text-sm bg-orange-50 text-orange-700 px-2 py-1 rounded font-bold">{{ dish.price_label
+                        }}</span>
+                    </div>
                   </div>
                   <div class="grid grid-cols-2 gap-3 text-sm">
                     <div class="flex items-center gap-1 text-gray-600"><span class="font-bold">{{
@@ -579,7 +712,7 @@
   </div>
 
   <script>
-    const { createApp, ref, onMounted, nextTick, computed, watch } = Vue;
+    const { createApp, ref, onMounted, nextTick, computed } = Vue;
 
     const SOURCES = [
       "《中国食物成分表 第6版》",
@@ -624,7 +757,8 @@
       legacyImports: "nutrition_import_batches_v1",
       users: "nutrition_users_v1",
       session: "nutrition_session_v1",
-      profiles: "nutrition_profiles_v1"
+      profiles: "nutrition_profiles_v1",
+      favorites: "nutrition_favorites_v1"
     };
 
     const sha256 = (text) => {
@@ -679,6 +813,27 @@
 
     const saveProfiles = (profiles) => {
       localStorage.setItem(STORAGE.profiles, JSON.stringify(profiles || {}));
+    };
+
+    const loadFavoritesByUser = (username) => {
+      const raw = localStorage.getItem(STORAGE.favorites);
+      try {
+        const obj = JSON.parse(raw || "{}");
+        const arr = Array.isArray(obj[username]) ? obj[username] : [];
+        return new Set(arr);
+      } catch {
+        return new Set();
+      }
+    };
+
+    const saveFavoritesByUser = (username, keySet) => {
+      const raw = localStorage.getItem(STORAGE.favorites);
+      let obj = {};
+      try {
+        obj = JSON.parse(raw || "{}");
+      } catch { /* ignore */ }
+      obj[username] = Array.from(keySet);
+      localStorage.setItem(STORAGE.favorites, JSON.stringify(obj));
     };
 
     const createBatchId = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -985,9 +1140,11 @@
 
         const users = ref({});
         const session = ref(null);
+        const favorites = ref(new Set());
 
         const isLoggedIn = computed(() => !!session.value && !!session.value.username);
         const currentUsername = computed(() => session.value?.username || '');
+        const favoriteKeys = computed(() => Array.from(favorites.value));
 
         const recommendation = ref(null);
         const isLoadingMenu = ref(true);
@@ -1039,6 +1196,22 @@
           });
         });
 
+        const searchSuggestions = computed(() => {
+          const q = normalizeText(menuSearchQuery.value).toLowerCase();
+          if (!q) return [];
+          const seen = new Set();
+          const list = [];
+          for (const d of menu.value) {
+            const text = `${d.name} ${d.window_name} ${d.category}`.toLowerCase();
+            if (text.includes(q) && !seen.has(d.name)) {
+              seen.add(d.name);
+              list.push({ name: d.name, window: d.window_name });
+              if (list.length >= 15) break;
+            }
+          }
+          return list;
+        });
+
         const menuTree = computed(() => {
           const items = menu.value;
           const byCanteen = new Map();
@@ -1074,6 +1247,32 @@
           }
           return arr.sort((a, b) => String(a.name).localeCompare(String(b.name), "zh-CN"));
         });
+
+        const favoriteDishes = computed(() => {
+          const keySet = favorites.value;
+          const arr = [];
+          const map = new Map(menu.value.map(d => [d.key, d]));
+          for (const key of keySet) {
+            const d = map.get(key);
+            if (d) arr.push(d);
+          }
+          return arr;
+        });
+
+        const isFavorited = (key) => favorites.value.has(key);
+
+        const toggleFavorite = (dish) => {
+          if (!isLoggedIn.value) return;
+          const username = session.value.username;
+          const key = dish.key;
+          if (favorites.value.has(key)) {
+            favorites.value.delete(key);
+          } else {
+            favorites.value.add(key);
+          }
+          saveFavoritesByUser(username, favorites.value);
+          showToast(favorites.value.has(key) ? "已收藏" : "已取消收藏", favorites.value.has(key) ? "success" : "info");
+        };
 
         const selectWindow = (windowKey, canteenId, windowName, dishCount) => {
           selectedWindowKey.value = windowKey;
@@ -1473,6 +1672,7 @@
             };
             saveSession(sess);
             session.value = sess;
+            favorites.value = loadFavoritesByUser(username);
             loadProfileForUser(username);
             showToast(`欢迎回来，${username}！`, "success");
             loginForm.value.password = '';
@@ -1484,6 +1684,7 @@
         const logout = () => {
           saveSession(null);
           session.value = null;
+          favorites.value = new Set();
           recommendation.value = null;
           profile.value = { canteen_id: "二食堂", age: 25, height: 175, weight: 70, activity_level: 'medium', blood_type: '', allergies: '', medical_history: '' };
           authView.value = 'login';
@@ -1657,6 +1858,7 @@
           const sess = loadSession();
           if (sess) {
             session.value = sess;
+            favorites.value = loadFavoritesByUser(sess.username);
             loadProfileForUser(sess.username);
           }
 
@@ -1687,6 +1889,11 @@
           currentUsername,
           users,
           session,
+          favorites,
+          favoriteKeys,
+          favoriteDishes,
+          isFavorited,
+          toggleFavorite,
           recommendation,
           isLoadingMenu,
           isLoadingData,
@@ -1694,15 +1901,16 @@
           fileInput,
           selectedMenuCanteen,
           menuSearchQuery,
+          searchSuggestions,
           menuViewMode,
           importCanteenOverride,
           selectedWindowKey,
           selectedWindowMeta,
-          selectedWindowDishes,
           selectWindow,
           clearSelectedWindow,
           displayedMenu,
           menuTree,
+          selectedWindowDishes,
           canteenOptions,
           canteenOptionsForImport,
           importBatches,
